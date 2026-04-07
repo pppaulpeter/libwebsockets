@@ -534,8 +534,10 @@ lws_hdr_custom_name_foreach(struct lws *wsi, lws_hdr_custom_fe_cb_t cb, void *op
  *
  * \param wsi: the connection to check
  * \param name: the arg name, like "token" or "token="
- * \param buf: the buffer to receive the urlarg (including the name= part)
- * \param len: the length of the buffer to receive the urlarg
+ * \param buf: the buffer to receive the urlarg value (name= prefix is stripped
+ *             from the result); must be sized for the full "name=value" fragment
+ *             internally, ie. strlen(name) + 1 + value_len + 2
+ * \param len: the length of buf
  *
  * Returns -1 if not present, else the length of y in the urlarg name=y.  If
  * zero or greater, then buf contains a copy of the string y.  Any = after the
@@ -558,8 +560,10 @@ lws_get_urlarg_by_name_safe(struct lws *wsi, const char *name, char *buf, int le
  *
  * \param wsi: the connection to check
  * \param name: the arg name, like "token="
- * \param buf: the buffer to receive the urlarg (including the name= part)
- * \param len: the length of the buffer to receive the urlarg
+ * \param buf: the buffer to receive the urlarg value (name= prefix is stripped
+ *             from the result); must be sized for the full "name=value" fragment
+ *             internally, ie. strlen(name) + 1 + value_len + 2
+ * \param len: the length of buf
  *
  *     Returns NULL if not found or a pointer inside buf to just after the
  *     name= part.
@@ -1073,4 +1077,20 @@ LWS_VISIBLE LWS_EXTERN int
 lws_h2_get_peer_txcredit_estimate(struct lws *wsi);
 
 ///@}
+
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+/** struct lws_digest_auth_req
+ *
+ * Passed as `in` to LWS_CALLBACK_HTTP_DIGEST_GET_HA1.  The callback must fill
+ * ha1[] with H(username:realm:password) for the given algorithm and return 0.
+ * Return nonzero to reject the request with 401.
+ */
+struct lws_digest_auth_req {
+	const char	*username; /**< username from Authorization header */
+	const char	*realm;    /**< realm from WWW-Authenticate / mount config */
+	int		algo;	   /**< LWS_GENHASH_TYPE_MD5 or LWS_GENHASH_TYPE_SHA256 */
+	uint8_t		ha1[32];   /**< callback writes H(A1) here (16B for MD5, 32B for SHA-256) */
+	uint8_t		ha1_set;   /**< callback MUST set to 1 after writing ha1[], else auth fails */
+};
+#endif
 

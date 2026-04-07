@@ -904,6 +904,14 @@ enum lws_callback_reasons {
 	 * the context, message, and peer sockaddr information.
 	 */
 
+	LWS_CALLBACK_HTTP_DIGEST_GET_HA1				= 216,
+	/**< Called when digest auth (RFC7616) needs H(A1) = H(username:realm:password)
+	 * to verify a client's Authorization: Digest response.
+	 * `in` points to a `struct lws_digest_auth_req` containing the parsed
+	 * username, realm, and algorithm.  The callback must fill req->ha1[] with
+	 * the pre-computed hash and return 0.  Return nonzero to reject (triggers 401).
+	 * Only fired when a mount's auth_mask includes LWSAUTHM_DIGEST_AUTH_CALLBACK. */
+
 	/****** add new things just above ---^ ******/
 
 	LWS_CALLBACK_USER = 1000,

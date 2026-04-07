@@ -208,6 +208,9 @@ struct lws_vhost_role_http {
 #if defined(LWS_CLIENT_HTTP_PROXYING)
 	unsigned int http_proxy_port;
 #endif
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+	uint8_t http_digest_auth_key[16]; /**< random per-vhost secret for nonce signing */
+#endif
 };
 
 #ifdef LWS_WITH_ACCESS_LOG
@@ -319,13 +322,25 @@ enum lws_check_basic_auth_results {
 	LCBA_CONTINUE,
 	LCBA_FAILED_AUTH,
 	LCBA_END_TRANSACTION,
+	LCBA_STALE_NONCE,	/* digest auth: nonce expired, retry with stale=TRUE */
 };
+
+int
+lws_authorization_rewrite(struct lws *wsi, const char *name, size_t len);
 
 enum lws_check_basic_auth_results
 lws_check_basic_auth(struct lws *wsi, const char *basic_auth_login_file, unsigned int auth_mode);
 
 int
 lws_unauthorised_basic_auth(struct lws *wsi);
+
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+enum lws_check_basic_auth_results
+lws_check_digest_auth(struct lws *wsi, const char *realm);
+
+int
+lws_unauthorised_digest_auth(struct lws *wsi, const char *realm, int stale);
+#endif
 
 int
 lws_read_h1(struct lws *wsi, unsigned char *buf, lws_filepos_t len);

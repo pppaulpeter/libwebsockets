@@ -269,33 +269,71 @@ int
 lws_process_ws_upgrade2(struct lws *wsi)
 {
 	struct lws_context_per_thread *pt = &wsi->a.context->pt[(int)wsi->tsi];
-#if defined(LWS_WITH_HTTP_BASIC_AUTH)
+#if defined(LWS_WITH_HTTP_BASIC_AUTH) || defined(LWS_WITH_HTTP_DIGEST_AUTH)
 	const struct lws_protocol_vhost_options *pvos = NULL;
-	const char *ws_prot_basic_auth = NULL;
-
-
-	/*
-	 * Allow basic auth a look-in now we bound the wsi to the protocol.
-	 *
-	 * For vhost ws basic auth, it is "basic-auth": "path" as usual but
-	 * applied to the protocol's entry in the vhost's "ws-protocols":
-	 * section, as a pvo.
-	 */
 
 	pvos = lws_vhost_protocol_options(wsi->a.vhost, wsi->a.protocol->name);
-	if (pvos && pvos->options &&
-	    !lws_pvo_get_str((void *)pvos->options, "basic-auth",
-			     &ws_prot_basic_auth)) {
-		lwsl_info("%s: ws upgrade requires basic auth\n", __func__);
-		switch (lws_check_basic_auth(wsi, ws_prot_basic_auth, LWSAUTHM_DEFAULT
-						/* no callback based auth here */)) {
-		case LCBA_CONTINUE:
-			break;
-		case LCBA_FAILED_AUTH:
-			return lws_unauthorised_basic_auth(wsi);
-		case LCBA_END_TRANSACTION:
-			lws_return_http_status(wsi, HTTP_STATUS_FORBIDDEN, NULL);
-			return lws_http_transaction_completed(wsi);
+#endif
+
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+	{
+		const char *ws_prot_digest_realm = NULL;
+
+		/*
+		 * Digest auth for ws upgrades: set pvo "digest-auth": "realm"
+		 * on the ws protocol in the vhost's ws-protocols section.
+		 * Verification is via LWS_CALLBACK_HTTP_DIGEST_GET_HA1.
+		 */
+		if (pvos && pvos->options &&
+		    !lws_pvo_get_str((void *)pvos->options, "digest-auth",
+				     &ws_prot_digest_realm)) {
+			lwsl_wsi_info(wsi, "ws upgrade requires digest auth\n");
+			switch (lws_check_digest_auth(wsi, ws_prot_digest_realm)) {
+			case LCBA_CONTINUE:
+				break;
+			case LCBA_STALE_NONCE:
+				return lws_unauthorised_digest_auth(wsi,
+							ws_prot_digest_realm, 1);
+			case LCBA_FAILED_AUTH:
+				return lws_unauthorised_digest_auth(wsi,
+							ws_prot_digest_realm, 0);
+			case LCBA_END_TRANSACTION:
+				lws_return_http_status(wsi,
+						HTTP_STATUS_FORBIDDEN, NULL);
+				return lws_http_transaction_completed(wsi);
+			}
+		}
+	}
+#endif
+
+#if defined(LWS_WITH_HTTP_BASIC_AUTH)
+	{
+		const char *ws_prot_basic_auth = NULL;
+
+		/*
+		 * Allow basic auth a look-in now we bound the wsi to the protocol.
+		 *
+		 * For vhost ws basic auth, it is "basic-auth": "path" as usual but
+		 * applied to the protocol's entry in the vhost's "ws-protocols":
+		 * section, as a pvo.
+		 */
+		if (pvos && pvos->options &&
+		    !lws_pvo_get_str((void *)pvos->options, "basic-auth",
+				     &ws_prot_basic_auth)) {
+			lwsl_info("%s: ws upgrade requires basic auth\n", __func__);
+			switch (lws_check_basic_auth(wsi, ws_prot_basic_auth,
+						LWSAUTHM_DEFAULT)) {
+			case LCBA_CONTINUE:
+				break;
+			case LCBA_FAILED_AUTH:
+				return lws_unauthorised_basic_auth(wsi);
+			case LCBA_END_TRANSACTION:
+				lws_return_http_status(wsi,
+						HTTP_STATUS_FORBIDDEN, NULL);
+				return lws_http_transaction_completed(wsi);
+			default: /* LCBA_STALE_NONCE not applicable to basic auth */
+				break;
+			}
 		}
 	}
 #endif

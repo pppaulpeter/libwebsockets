@@ -1198,9 +1198,9 @@ lws_http_get_uri_and_method(struct lws *wsi, char **puri_ptr, int *puri_len)
 	return -1;
 }
 
-#if defined(LWS_WITH_HTTP_BASIC_AUTH)
+#if defined(LWS_WITH_HTTP_BASIC_AUTH) || defined(LWS_WITH_HTTP_DIGEST_AUTH)
 
-static int
+int
 lws_authorization_rewrite(struct lws *wsi, const char *name, size_t len)
 {
 	char *p = lws_hdr_simple_ptr(wsi, WSI_TOKEN_HTTP_AUTHORIZATION);
@@ -1927,6 +1927,27 @@ lws_http_action(struct lws *wsi)
 	}
 #endif
 
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+
+	/* digest auth (RFC7616) takes priority if mount requests it */
+
+	if ((hit->auth_mask & AUTH_MODE_MASK) == LWSAUTHM_DIGEST_AUTH_CALLBACK) {
+		const char *realm = hit->digest_auth_realm ?
+				    hit->digest_auth_realm : "lws";
+		switch (lws_check_digest_auth(wsi, realm)) {
+		case LCBA_CONTINUE:
+			break;
+		case LCBA_STALE_NONCE:
+			return lws_unauthorised_digest_auth(wsi, realm, 1);
+		case LCBA_FAILED_AUTH:
+			return lws_unauthorised_digest_auth(wsi, realm, 0);
+		case LCBA_END_TRANSACTION:
+			lws_return_http_status(wsi, HTTP_STATUS_FORBIDDEN, NULL);
+			return lws_http_transaction_completed(wsi);
+		}
+	} else
+#endif
+
 #if defined(LWS_WITH_HTTP_BASIC_AUTH)
 
 	/* basic auth? */
@@ -1940,6 +1961,8 @@ lws_http_action(struct lws *wsi)
 	case LCBA_END_TRANSACTION:
 		lws_return_http_status(wsi, HTTP_STATUS_FORBIDDEN, NULL);
 		return lws_http_transaction_completed(wsi);
+	default: /* LCBA_STALE_NONCE not applicable to basic auth */
+		break;
 	}
 #endif
 

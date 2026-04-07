@@ -191,6 +191,18 @@ if ((LWS_ROLE_H1 OR LWS_ROLE_H2))
 			target_compile_definitions(test-lecp PRIVATE LWS_BUILDING_STATIC)
 		endif()
 
+		if (LWS_WITH_HTTP_DIGEST_AUTH)
+			create_test_app(
+				test-digest-auth
+				"test-digest-auth.c"
+				""
+				""
+				""
+				""
+				"")
+			target_compile_definitions(test-digest-auth PRIVATE LWS_BUILDING_STATIC)
+		endif()
+
 		add_custom_command(TARGET test-server
 						POST_BUILD
 						COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:test-server>/../share/libwebsockets-test-server")

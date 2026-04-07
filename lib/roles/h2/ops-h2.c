@@ -908,6 +908,8 @@ lws_h2_bind_for_post_before_action(struct lws *wsi)
 		case LCBA_END_TRANSACTION:
 			lws_return_http_status(wsi, HTTP_STATUS_FORBIDDEN, NULL);
 			return lws_http_transaction_completed(wsi);
+		default: /* LCBA_STALE_NONCE not applicable to basic auth */
+			break;
 		}
 #endif
 	}

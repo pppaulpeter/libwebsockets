@@ -1408,7 +1408,12 @@ enum lws_mount_protocols {
  */
 enum lws_authentication_mode {
 	LWSAUTHM_DEFAULT = 0, /**< default authenticate only if basic_auth_login_file is provided */
-	LWSAUTHM_BASIC_AUTH_CALLBACK = 1 << 28 /**< Basic auth with a custom verifier */
+	LWSAUTHM_BASIC_AUTH_CALLBACK = 1 << 28, /**< Basic auth with a custom verifier */
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+	LWSAUTHM_DIGEST_AUTH_CALLBACK = 2 << 28  /**< Digest auth (RFC7616): LWS calls
+	 * LWS_CALLBACK_HTTP_DIGEST_GET_HA1 with the username+realm so the
+	 * application can return H(A1)=H(user:realm:password) from any backend */
+#endif
 };
 
 /** The authentication mode is stored in the top 4 bits of lws_http_mount.auth_mask */
@@ -1456,6 +1461,12 @@ struct lws_http_mount {
 
 	const char *basic_auth_login_file;
 	/**<NULL, or filepath to use to check basic auth logins against. (requires LWSAUTHM_DEFAULT) */
+
+#if defined(LWS_WITH_HTTP_DIGEST_AUTH)
+	const char *digest_auth_realm;
+	/**< NULL, or realm string sent in WWW-Authenticate: Digest realm="..." (requires
+	 * LWSAUTHM_DIGEST_AUTH_CALLBACK). Also sets Basic realm if basic auth is used. */
+#endif
 
 	const char *cgi_chroot_path;
 	/**< NULL, or chroot patch for child cgi process */

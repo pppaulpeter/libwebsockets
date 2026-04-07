@@ -60,6 +60,11 @@ if (LWS_WITH_ACCESS_LOG)
 	list(APPEND SOURCES
 		roles/http/server/access-log.c)
 endif()
+
+if (LWS_WITH_HTTP_DIGEST_AUTH)
+	list(APPEND SOURCES
+		roles/http/server/auth.c)
+endif()
 	
 if (LWS_WITH_HTTP_STREAM_COMPRESSION)
 	list(APPEND SOURCES
